@@ -5,10 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Flexi CBT – Payment</title>
 
-<!-- Paystack -->
+<!-- Paystack Inline JS (Normal script, not module) -->
 <script src="https://js.paystack.co/v1/inline.js"></script>
 
-<!-- Firebase SDK -->
+<!-- Firebase SDK (Modular, for Firestore) -->
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
 import { getFirestore, doc, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
@@ -23,11 +23,90 @@ const firebaseConfig = {
   appId: "1:320176672406:web:90f19511241e51c6437cb7"
 };
 
+// Initialize Firebase
 const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
+export const db = getFirestore(app);
+</script>
 
-// ===== PAY FUNCTION =====
-window.pay = function() {
+<style>
+body {
+  font-family: Arial, Helvetica, sans-serif;
+  background: #f4f6f4;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  margin: 0;
+}
+
+.container {
+  background: #fff;
+  padding: 30px;
+  width: 100%;
+  max-width: 420px;
+  border-radius: 12px;
+  box-shadow: 0 10px 25px rgba(0,0,0,.15);
+  text-align: center;
+}
+
+h2 {
+  color: #0b6623;
+  margin-bottom: 10px;
+}
+
+input {
+  width: 100%;
+  padding: 12px;
+  margin: 12px 0;
+  border-radius: 8px;
+  border: 1px solid #ccc;
+  font-size: 16px;
+}
+
+button {
+  width: 100%;
+  padding: 12px;
+  background: #0b6623;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+button:hover {
+  opacity: 0.9;
+}
+
+.status {
+  margin-top: 15px;
+  font-weight: bold;
+  color: #333;
+}
+</style>
+</head>
+<body>
+
+<div class="container">
+  <h2>CBT Access Payment</h2>
+  <p>Pay <b>₦500</b> to unlock the CBT exam</p>
+
+  <input type="tel" id="whatsapp" placeholder="WhatsApp Number e.g. 0803xxxxxxx">
+
+  <button id="payBtn">Pay ₦500</button>
+
+  <div class="status" id="status"></div>
+</div>
+
+<!-- Paystack payment function -->
+<script>
+const dbModule = await import('./firebase-module.js'); // optional: if you want to use modular Firebase separately
+const db = dbModule.db; // Firestore reference
+
+document.getElementById("payBtn").addEventListener("click", pay);
+
+function pay() {
   const whatsapp = document.getElementById("whatsapp").value.trim();
   const status = document.getElementById("status");
 
@@ -39,16 +118,20 @@ window.pay = function() {
   status.textContent = "Opening payment gateway...";
 
   const handler = PaystackPop.setup({
-    key: "pk_live_bb0c7b83bfdbd0c9990e2c7f7fd73a86d4821a00", // 🔴 Replace with your live key
+    key: "pk_test_9408761e58ce1fe7a3a57c0df2422d887c3d4b35", // replace with live key later
     email: whatsapp + "@flexicbt.com",
     amount: 500 * 100,
     currency: "NGN",
+
     callback: async function(response) {
       status.textContent = "✅ Payment successful. Generating PIN...";
 
       try {
         const pin = "FT-" + Math.random().toString(36).substring(2, 8).toUpperCase();
 
+        // Save to Firestore
+        const module = await import('https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js');
+        const { setDoc, doc, serverTimestamp } = module;
         await setDoc(doc(db, "subscriptions", whatsapp), {
           whatsapp,
           pin,
@@ -59,94 +142,26 @@ window.pay = function() {
         });
 
         status.innerHTML = `
-          <strong>PAYMENT CONFIRMED ✅</strong><br><br>
+          <strong>PAYMENT CONFIRMED</strong><br><br>
           WhatsApp Number:<br>
           <b>${whatsapp}</b><br><br>
           CBT PIN:<br>
-          <b style="font-size:22px">${pin}</b><br><br>
+          <b style="font-size:20px">${pin}</b><br><br>
           You can now access the CBT exam.
         `;
       } catch(err) {
         console.error(err);
-        status.textContent = "❌ Payment verified but failed to save PIN. Try again later.";
+        status.textContent = "❌ Payment saved but failed to store PIN. Try again later.";
       }
     },
+
     onClose: function() {
       status.textContent = "❌ Payment cancelled";
     }
   });
 
   handler.openIframe();
-};
+}
 </script>
-
-<style>
-body {
-  font-family: 'Segoe UI', Arial, sans-serif;
-  background: linear-gradient(120deg,#dff6dd,#f4f6f4);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  height: 100vh;
-  margin: 0;
-}
-.container {
-  background: #fff;
-  padding: 35px 25px;
-  width: 100%;
-  max-width: 420px;
-  border-radius: 15px;
-  box-shadow: 0 10px 25px rgba(0,0,0,.2);
-  text-align: center;
-}
-h2 {
-  color: #0b6623;
-  margin-bottom: 12px;
-}
-p {
-  font-size: 16px;
-  margin-bottom: 20px;
-}
-input {
-  width: 100%;
-  padding: 14px;
-  margin: 10px 0;
-  border-radius: 10px;
-  border:1px solid #ccc;
-  font-size:16px;
-}
-button {
-  width: 100%;
-  padding: 14px;
-  background: #0b6623;
-  color: #fff;
-  border: none;
-  border-radius: 10px;
-  font-size: 16px;
-  font-weight: bold;
-  cursor: pointer;
-  transition: 0.2s;
-}
-button:hover {
-  background: #084d1a;
-}
-.status {
-  margin-top: 20px;
-  font-weight: bold;
-  font-size: 16px;
-}
-</style>
-</head>
-<body>
-<div class="container">
-  <h2>CBT Access Payment</h2>
-  <p>Pay <b>₦500</b> to unlock the CBT exam</p>
-
-  <input type="tel" id="whatsapp" placeholder="WhatsApp Number e.g. 0803xxxxxxx">
-
-  <button onclick="pay()">Pay ₦500</button>
-
-  <div class="status" id="status"></div>
-</div>
 </body>
 </html>
