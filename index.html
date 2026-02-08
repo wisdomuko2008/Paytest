@@ -5,30 +5,39 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Flexi CBT – Payment</title>
 
+<!-- Paystack -->
+<script src="https://js.paystack.co/v1/inline.js"></script>
+
+<!-- Firebase (compat version) -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+
 <style>
-/* Hide content initially */
 body {
   font-family: Arial, Helvetica, sans-serif;
-  margin: 0;
-  height: 100vh;
+  background: linear-gradient(to right, #d4f5d4, #f4f6f4);
   display: flex;
   justify-content: center;
   align-items: center;
-  background: #f4f6f4;
-  visibility: hidden; /* HIDDEN until Paystack loads */
+  height: 100vh;
+  margin: 0;
 }
-
 .container {
   background: #fff;
-  padding: 30px;
+  padding: 30px 25px;
   width: 100%;
   max-width: 420px;
   border-radius: 12px;
-  box-shadow: 0 10px 25px rgba(0,0,0,.15);
+  box-shadow: 0 12px 30px rgba(0,0,0,0.15);
+  text-align: center;
 }
-
-h2 { text-align: center; color: #0b6623; }
-p { text-align: center; }
+h2 {
+  color: #0b6623;
+  margin-bottom: 10px;
+}
+p {
+  margin-bottom: 20px;
+}
 input {
   width: 100%;
   padding: 12px;
@@ -47,88 +56,99 @@ button {
   font-size: 16px;
   font-weight: bold;
   cursor: pointer;
+  transition: 0.3s;
 }
-button:hover { opacity: 0.9; }
-
-.status { text-align: center; font-weight: bold; margin-top: 15px; }
-
-/* Optional preloader style */
-#preloader {
-  position: fixed;
-  top: 0; left: 0;
-  width: 100%; height: 100%;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  background: #f4f6f4;
-  z-index: 9999;
-  font-size: 18px;
-  color: #0b6623;
+button:hover {
+  opacity: 0.9;
+}
+.status {
+  margin-top: 15px;
+  font-weight: bold;
 }
 </style>
+
 </head>
 <body>
-
-<div id="preloader">Loading payment system, please wait...</div>
 
 <div class="container">
   <h2>CBT Access Payment</h2>
   <p>Pay <b>₦500</b> to unlock the CBT exam</p>
 
   <input type="tel" id="whatsapp" placeholder="WhatsApp Number e.g. 0803xxxxxxx">
+
   <button id="payBtn">Pay ₦500</button>
 
   <div class="status" id="status"></div>
 </div>
 
 <script>
-// 1️⃣ Hide page until Paystack loads
-const body = document.body;
-const preloader = document.getElementById("preloader");
-const payBtn = document.getElementById("payBtn");
-const status = document.getElementById("status");
-const whatsappInput = document.getElementById("whatsapp");
+  // ===== FIREBASE INIT =====
+  const firebaseConfig = {
+    apiKey: "AIzaSyCPumFid5YNTWug52q2VDtSDQTLU9REgss",
+    authDomain: "flexi-tutors.firebaseapp.com",
+    projectId: "flexi-tutors"
+  };
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.firestore();
 
-// Disable button initially
-payBtn.disabled = true;
+  // ===== PAY FUNCTION =====
+  function pay() {
+    const whatsapp = document.getElementById("whatsapp").value.trim();
+    const status = document.getElementById("status");
 
-// 2️⃣ Load Paystack script dynamically
-const paystackScript = document.createElement("script");
-paystackScript.src = "https://js.paystack.co/v1/inline.js";
-paystackScript.onload = () => {
-    preloader.style.display = "none";  // hide preloader
-    body.style.visibility = "visible"; // show page
-    payBtn.disabled = false;           // enable button
-};
-document.head.appendChild(paystackScript);
-
-// 3️⃣ Pay function
-function pay() {
-    const whatsapp = whatsappInput.value.trim();
     if (!whatsapp) {
-        status.textContent = "❌ Enter your WhatsApp number";
-        return;
+      status.textContent = "❌ Enter your WhatsApp number";
+      return;
     }
 
     status.textContent = "Opening payment gateway...";
 
     const handler = PaystackPop.setup({
-        key: "pk_live_bb0c7b83bfdbd0c9990e2c7f7fd73a86d4821a00", // replace with your key
-        email: whatsapp + "@flexicbt.com",
-        amount: 500 * 100,
-        currency: "NGN",
-        callback: function(response) {
-            status.textContent = "✅ Payment successful! Reference: " + response.reference;
-        },
-        onClose: function() {
-            status.textContent = "❌ Payment cancelled";
+      key: "pk_live_bb0c7b83bfdbd0c9990e2c7f7fd73a86d4821a00", // 🔴 Replace with your live key
+      email: whatsapp + "@flexicbt.com",
+      amount: 500 * 100, // in kobo
+      currency: "NGN",
+
+      callback: async function(response) {
+        status.textContent = "✅ Payment successful. Generating PIN...";
+
+        try {
+          const pin = "FT-" + Math.random().toString(36).substring(2,8).toUpperCase();
+
+          // Save to Firestore
+          await db.collection("subscriptions").doc(whatsapp).set({
+            whatsapp: whatsapp,
+            pin: pin,
+            paid: true,
+            used: false,
+            reference: response.reference,
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+          });
+
+          status.innerHTML = `
+            <strong>PAYMENT CONFIRMED</strong><br><br>
+            WhatsApp Number:<br>
+            <b>${whatsapp}</b><br><br>
+            CBT PIN:<br>
+            <b style="font-size:20px">${pin}</b><br><br>
+            You can now access the CBT exam.
+          `;
+        } catch (err) {
+          console.error(err);
+          status.textContent = "❌ Payment saved but failed to store PIN. Try again later.";
         }
+      },
+
+      onClose: function() {
+        status.textContent = "❌ Payment cancelled";
+      }
     });
 
     handler.openIframe();
-}
+  }
 
-payBtn.addEventListener("click", pay);
+  // Bind button
+  document.getElementById("payBtn").addEventListener("click", pay);
 </script>
 
 </body>
