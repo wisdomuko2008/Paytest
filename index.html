@@ -83,11 +83,15 @@ button:hover {
   
 <script>  
   // ===== FIREBASE INIT =====  
-  const firebaseConfig = {  
-    apiKey: "AIzaSyCPumFid5YNTWug52q2VDtSDQTLU9REgss",  
-    authDomain: "flexi-tutors.firebaseapp.com",  
-    projectId: "flexi-tutors"  
-  };  
+  const firebaseConfig = {
+  apiKey: "AIzaSyCPumFid5YNTWug52q2VDtSDQTLU9REgss",
+  authDomain: "flexi-tutors.firebaseapp.com",
+  projectId: "flexi-tutors",
+  storageBucket: "flexi-tutors.appspot.com",
+  messagingSenderId: "320176672406",
+  appId: "1:320176672406:web:90f19511241e51c6437cb7",
+};
+  
   firebase.initializeApp(firebaseConfig);  
   const db = firebase.firestore();  
   
