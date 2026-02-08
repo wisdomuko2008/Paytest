@@ -5,10 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Flexi CBT – Payment</title>
 
-<!-- Paystack -->
+<!-- Paystack CDN -->
 <script src="https://js.paystack.co/v1/inline.js"></script>
 
-<!-- Firebase (compat version) -->
+<!-- Firebase CDN (compat version) -->
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 
@@ -31,13 +31,8 @@ body {
   box-shadow: 0 12px 30px rgba(0,0,0,0.15);
   text-align: center;
 }
-h2 {
-  color: #0b6623;
-  margin-bottom: 10px;
-}
-p {
-  margin-bottom: 20px;
-}
+h2 { color: #0b6623; margin-bottom: 10px; }
+p { margin-bottom: 20px; }
 input {
   width: 100%;
   padding: 12px;
@@ -58,15 +53,9 @@ button {
   cursor: pointer;
   transition: 0.3s;
 }
-button:hover {
-  opacity: 0.9;
-}
-.status {
-  margin-top: 15px;
-  font-weight: bold;
-}
+button:hover { opacity: 0.9; }
+.status { margin-top: 15px; font-weight: bold; }
 </style>
-
 </head>
 <body>
 
@@ -86,36 +75,38 @@ button:hover {
   const firebaseConfig = {
     apiKey: "AIzaSyCPumFid5YNTWug52q2VDtSDQTLU9REgss",
     authDomain: "flexi-tutors.firebaseapp.com",
-    projectId: "flexi-tutors"
+    projectId: "flexi-tutors",
+    storageBucket: "flexi-tutors.firebasestorage.app",
+    messagingSenderId: "320176672406",
+    appId: "1:320176672406:web:90f19511241e51c6437cb7",
+    measurementId: "G-Z9P1G4K0SY"
   };
   firebase.initializeApp(firebaseConfig);
   const db = firebase.firestore();
 
+  const whatsappInput = document.getElementById("whatsapp");
+  const status = document.getElementById("status");
+  const payBtn = document.getElementById("payBtn");
+
   // ===== PAY FUNCTION =====
   function pay() {
-    const whatsapp = document.getElementById("whatsapp").value.trim();
-    const status = document.getElementById("status");
-
+    const whatsapp = whatsappInput.value.trim();
     if (!whatsapp) {
       status.textContent = "❌ Enter your WhatsApp number";
       return;
     }
 
-    status.textContent = "Opening payment gateway...";
-
     const handler = PaystackPop.setup({
-      key: "pk_live_bb0c7b83bfdbd0c9990e2c7f7fd73a86d4821a00", // 🔴 Replace with your live key
+      key: "pk_live_bb0c7b83bfdbd0c9990e2c7f7fd73a86d4821a00", // LIVE key
       email: whatsapp + "@flexicbt.com",
-      amount: 500 * 100, // in kobo
+      amount: 500 * 100,
       currency: "NGN",
 
       callback: async function(response) {
-        status.textContent = "✅ Payment successful. Generating PIN...";
-
         try {
           const pin = "FT-" + Math.random().toString(36).substring(2,8).toUpperCase();
 
-          // Save to Firestore
+          // Write to Firestore
           await db.collection("subscriptions").doc(whatsapp).set({
             whatsapp: whatsapp,
             pin: pin,
@@ -126,16 +117,16 @@ button:hover {
           });
 
           status.innerHTML = `
-            <strong>PAYMENT CONFIRMED</strong><br><br>
+            <strong>✅ PAYMENT CONFIRMED</strong><br><br>
             WhatsApp Number:<br>
             <b>${whatsapp}</b><br><br>
             CBT PIN:<br>
             <b style="font-size:20px">${pin}</b><br><br>
             You can now access the CBT exam.
           `;
-        } catch (err) {
+        } catch(err) {
           console.error(err);
-          status.textContent = "❌ Payment saved but failed to store PIN. Try again later.";
+          status.textContent = "❌ Payment completed but failed to store PIN. Check Firestore rules.";
         }
       },
 
@@ -147,8 +138,7 @@ button:hover {
     handler.openIframe();
   }
 
-  // Bind button
-  document.getElementById("payBtn").addEventListener("click", pay);
+  payBtn.addEventListener("click", pay);
 </script>
 
 </body>
