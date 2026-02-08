@@ -3,153 +3,86 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Flexi CBT – Payment</title>
-
-<!-- Paystack -->
+<title>CBT Access Payment</title>
 <script src="https://js.paystack.co/v1/inline.js"></script>
-
-<!-- Firebase (compat version) -->
+<!-- Firebase SDKs -->
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
-
 <style>
-body {
-  font-family: Arial, Helvetica, sans-serif;
-  background: linear-gradient(to right, #d4f5d4, #f4f6f4);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  height: 100vh;
-  margin: 0;
-}
-.container {
-  background: #fff;
-  padding: 30px 25px;
-  width: 100%;
-  max-width: 420px;
-  border-radius: 12px;
-  box-shadow: 0 12px 30px rgba(0,0,0,0.15);
-  text-align: center;
-}
-h2 {
-  color: #0b6623;
-  margin-bottom: 10px;
-}
-p {
-  margin-bottom: 20px;
-}
-input {
-  width: 100%;
-  padding: 12px;
-  margin: 12px 0;
-  border-radius: 8px;
-  border: 1px solid #ccc;
-  font-size: 16px;
-}
-button {
-  width: 100%;
-  padding: 12px;
-  background: #0b6623;
-  color: white;
-  border: none;
-  border-radius: 8px;
-  font-size: 16px;
-  font-weight: bold;
-  cursor: pointer;
-  transition: 0.3s;
-}
-button:hover {
-  opacity: 0.9;
-}
-.status {
-  margin-top: 15px;
-  font-weight: bold;
-}
+body { font-family: Arial, sans-serif; display: flex; justify-content:center; align-items:center; height:100vh; background:#f4f6f4; }
+.card { background:white; padding:30px; border-radius:10px; box-shadow:0 0 10px rgba(0,0,0,0.1); text-align:center; width:90%; max-width:400px; }
+input { padding:10px; width:100%; margin:10px 0; border-radius:5px; border:1px solid #ccc; }
+button { padding:12px 20px; background:#0b6623; color:white; border:none; border-radius:5px; cursor:pointer; width:100%; font-size:16px; }
+button:hover { background:#094f1a; }
+.success { color:green; margin-top:15px; font-weight:bold; }
 </style>
-
 </head>
 <body>
-
-<div class="container">
+<div class="card">
   <h2>CBT Access Payment</h2>
-  <p>Pay <b>₦500</b> to unlock the CBT exam</p>
-
-  <input type="tel" id="whatsapp" placeholder="WhatsApp Number e.g. 0803xxxxxxx">
-
-  <button id="payBtn">Pay ₦500</button>
-
-  <div class="status" id="status"></div>
+  <p>Pay ₦500 to unlock the CBT exam</p>
+  <input type="text" id="phone" placeholder="Enter your phone number" />
+  <button onclick="payNow()">Pay ₦500</button>
+  <div id="result" class="success"></div>
 </div>
 
 <script>
-  // ===== FIREBASE INIT =====
-  const firebaseConfig = {
-    apiKey: "AIzaSyCPumFid5YNTWug52q2VDtSDQTLU9REgss",
-    authDomain: "flexi-tutors.firebaseapp.com",
-    projectId: "flexi-tutors"
-  };
-  firebase.initializeApp(firebaseConfig);
-  const db = firebase.firestore();
+// ===== Firebase Config =====
+const firebaseConfig = {
+    apiKey: "YOUR_FIREBASE_API_KEY",
+    authDomain: "YOUR_FIREBASE_PROJECT.firebaseapp.com",
+    projectId: "YOUR_FIREBASE_PROJECT",
+    storageBucket: "YOUR_FIREBASE_PROJECT.appspot.com",
+    messagingSenderId: "YOUR_SENDER_ID",
+    appId: "YOUR_APP_ID"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
 
-  // ===== PAY FUNCTION =====
-  function pay() {
-    const whatsapp = document.getElementById("whatsapp").value.trim();
-    const status = document.getElementById("status");
+// ===== Helper: Generate Random 6-digit PIN =====
+function generatePIN() {
+    return Math.floor(100000 + Math.random() * 900000).toString();
+}
 
-    if (!whatsapp) {
-      status.textContent = "❌ Enter your WhatsApp number";
-      return;
-    }
+// ===== Paystack Payment =====
+function payNow() {
+    const phone = document.getElementById("phone").value.trim();
+    if(!phone) { alert("Please enter your phone number"); return; }
 
-    status.textContent = "Opening payment gateway...";
+    let handler = PaystackPop.setup({
+        key: "pk_test_9408761e58ce1fe7a3a57c0df2422d887c3d4b35", // <-- Your TEST key here
+        email: "customer@example.com",
+        amount: 500 * 100, // Amount in Kobo
+        currency: "NGN",
+        ref: 'CBT_'+Math.floor(Math.random() * 1000000000),
+        metadata: { phone: phone },
+        callback: function(response) {
+            // Generate PIN
+            const pin = generatePIN();
 
-    const handler = PaystackPop.setup({
-      key: "pk_live_bb0c7b83bfdbd0c9990e2c7f7fd73a86d4821a00", // 🔴 Replace with your live key
-      email: whatsapp + "@flexicbt.com",
-      amount: 500 * 100, // in kobo
-      currency: "NGN",
-
-      callback: async function(response) {
-        status.textContent = "✅ Payment successful. Generating PIN...";
-
-        try {
-          const pin = "FT-" + Math.random().toString(36).substring(2,8).toUpperCase();
-
-          // Save to Firestore
-          await db.collection("subscriptions").doc(whatsapp).set({
-            whatsapp: whatsapp,
-            pin: pin,
-            paid: true,
-            used: false,
-            reference: response.reference,
-            createdAt: firebase.firestore.FieldValue.serverTimestamp()
-          });
-
-          status.innerHTML = `
-            <strong>PAYMENT CONFIRMED</strong><br><br>
-            WhatsApp Number:<br>
-            <b>${whatsapp}</b><br><br>
-            CBT PIN:<br>
-            <b style="font-size:20px">${pin}</b><br><br>
-            You can now access the CBT exam.
-          `;
-        } catch (err) {
-          console.error(err);
-          status.textContent = "❌ Payment saved but failed to store PIN. Try again later.";
+            // Save to Firestore
+            db.collection("cbtPayments").add({
+                phone: phone,
+                reference: response.reference,
+                amount: 500,
+                pin: pin,
+                paid: true,
+                timestamp: firebase.firestore.FieldValue.serverTimestamp()
+            })
+            .then(() => {
+                document.getElementById("result").innerText = `Payment Successful! Your CBT PIN is: ${pin}`;
+            })
+            .catch((err) => {
+                document.getElementById("result").innerText = `Payment succeeded but failed to save PIN. Contact admin.`;
+                console.error(err);
+            });
+        },
+        onClose: function() {
+            alert('Payment window closed.');
         }
-      },
-
-      onClose: function() {
-        status.textContent = "❌ Payment cancelled";
-      }
     });
-
     handler.openIframe();
-  }
-
-  // Bind button
-  document.getElementById("payBtn").addEventListener("click", pay);
+}
 </script>
-
 </body>
 </html>
