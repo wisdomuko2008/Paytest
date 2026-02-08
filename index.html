@@ -1,60 +1,59 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Flexi CBT – Payment</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Flexi CBT – Payment</title>
 
-<!-- Paystack inline modal -->
-<script src="https://js.paystack.co/v1/inline.js"></script>
+  <script src="https://js.paystack.co/v2/inline.js"></script>
 
-<!-- Firebase compat version -->
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 
-<style>
-body {
-  font-family: Arial, Helvetica, sans-serif;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  height: 100vh;
-  margin: 0;
-  background: linear-gradient(to right, #d4f5d4, #f4f6f4);
-}
-.container {
-  background: #fff;
-  padding: 30px;
-  width: 100%;
-  max-width: 420px;
-  border-radius: 12px;
-  text-align: center;
-  box-shadow: 0 12px 30px rgba(0,0,0,0.15);
-}
-h2 { color: #0b6623; margin-bottom: 10px; }
-p { margin-bottom: 20px; }
-input {
-  width: 100%;
-  padding: 12px;
-  margin: 12px 0;
-  border-radius: 8px;
-  border: 1px solid #ccc;
-  font-size: 16px;
-}
-button {
-  width: 100%;
-  padding: 12px;
-  background: #0b6623;
-  color: white;
-  border: none;
-  border-radius: 8px;
-  font-size: 16px;
-  font-weight: bold;
-  cursor: pointer;
-}
-button:hover { opacity: 0.9; }
-.status { margin-top: 15px; font-weight: bold; }
-</style>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+      background: linear-gradient(to right, #d4f5d4, #f4f6f4);
+    }
+    .container {
+      background: #fff;
+      padding: 30px;
+      width: 100%;
+      max-width: 420px;
+      border-radius: 12px;
+      text-align: center;
+      box-shadow: 0 12px 30px rgba(0,0,0,0.15);
+    }
+    h2 { color: #0b6623; margin-top: 0; }
+    input {
+      width: 100%;
+      padding: 12px;
+      margin: 12px 0;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+      box-sizing: border-box; /* Fixes padding overflow */
+      font-size: 16px;
+    }
+    button {
+      width: 100%;
+      padding: 12px;
+      background: #0b6623;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 16px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+    button:disabled { background: #8ba892; cursor: not-allowed; }
+    .status { margin-top: 15px; font-weight: bold; line-height: 1.5; }
+  </style>
 </head>
 <body>
 
@@ -62,8 +61,8 @@ button:hover { opacity: 0.9; }
   <h2>CBT Access Payment</h2>
   <p>Pay <b>₦500</b> to unlock the CBT exam</p>
 
-  <input type="tel" id="whatsapp" placeholder="WhatsApp Number e.g. 0803xxxxxxx">
-  <button id="payBtn">Pay ₦500</button>
+  <input type="tel" id="whatsapp" placeholder="WhatsApp Number (e.g. 08030000000)">
+  <button id="payBtn">Pay ₦500 Now</button>
   <div class="status" id="status"></div>
 </div>
 
@@ -75,9 +74,9 @@ button:hover { opacity: 0.9; }
     projectId: "flexi-tutors",
     storageBucket: "flexi-tutors.firebasestorage.app",
     messagingSenderId: "320176672406",
-    appId: "1:320176672406:web:90f19511241e51c6437cb7",
-    measurementId: "G-Z9P1G4K0SY"
+    appId: "1:320176672406:web:90f19511241e51c6437cb7"
   };
+  
   firebase.initializeApp(firebaseConfig);
   const db = firebase.firestore();
 
@@ -85,22 +84,31 @@ button:hover { opacity: 0.9; }
   const payBtn = document.getElementById("payBtn");
   const status = document.getElementById("status");
 
-  // ===== PAY FUNCTION =====
   function pay() {
     const whatsapp = whatsappInput.value.trim();
-    if (!whatsapp) {
-      status.textContent = "❌ Enter your WhatsApp number";
+    
+    // Basic validation
+    if (whatsapp.length < 10) {
+      status.style.color = "red";
+      status.textContent = "❌ Please enter a valid WhatsApp number";
       return;
     }
 
-    const handler = PaystackPop.setup({
-      key: "pk_live_bb0c7b83bfdbd0c9990e2c7f7fd73a86d4821a00", // LIVE key
-      email: whatsapp + "@flexicbt.com",
-      amount: 500 * 100,
-      currency: "NGN",
+    status.style.color = "black";
+    status.textContent = "Opening Paystack...";
+    payBtn.disabled = true;
 
-      callback: async function(response) {
-        status.textContent = "✅ Payment successful! Generating PIN...";
+    // PAYSTACK V2 NEW TRANSACTION
+    const paystack = new PaystackPop();
+    paystack.newTransaction({
+      key: "pk_live_bb0c7b83bfdbd0c9990e2c7f7fd73a86d4821a00", 
+      email: whatsapp + "@flexicbt.com",
+      amount: 500 * 100, // 500 Naira in kobo
+      currency: "NGN",
+      
+      onSuccess: async function(transaction) {
+        status.textContent = "✅ Success! Finalizing your PIN...";
+        
         try {
           const pin = "FT-" + Math.random().toString(36).substring(2,8).toUpperCase();
 
@@ -110,30 +118,38 @@ button:hover { opacity: 0.9; }
             pin: pin,
             paid: true,
             used: false,
-            reference: response.reference,
+            reference: transaction.reference,
             createdAt: firebase.firestore.FieldValue.serverTimestamp()
           });
 
           status.innerHTML = `
-            <strong>PAYMENT CONFIRMED</strong><br><br>
-            WhatsApp Number:<br>
-            <b>${whatsapp}</b><br><br>
-            CBT PIN:<br>
-            <b style="font-size:20px">${pin}</b><br><br>
-            You can now access the CBT exam.
+            <div style="color: green; border: 2px solid green; padding: 10px; border-radius: 8px;">
+              <strong>PAYMENT CONFIRMED</strong><br><br>
+              WhatsApp: <b>${whatsapp}</b><br>
+              CBT PIN: <b style="font-size:22px; color:#0b6623;">${pin}</b><br><br>
+              <em>Screenshot this page now!</em>
+            </div>
           `;
+          payBtn.style.display = "none"; 
+          whatsappInput.style.display = "none";
+
         } catch(err) {
           console.error(err);
-          status.textContent = "❌ Payment succeeded but failed to store PIN. Check Firestore rules.";
+          status.innerHTML = "❌ Payment OK, but PIN save failed. Please contact support with ref: " + transaction.reference;
         }
       },
+      
+      onCancel: function() {
+        payBtn.disabled = false;
+        status.textContent = "❌ Payment cancelled.";
+      },
 
-      onClose: function() {
-        status.textContent = "❌ Payment cancelled";
+      onError: function(error) {
+        payBtn.disabled = false;
+        status.textContent = "❌ Could not load Paystack. Check internet connection.";
+        console.error(error);
       }
     });
-
-    handler.openIframe();
   }
 
   payBtn.addEventListener("click", pay);
