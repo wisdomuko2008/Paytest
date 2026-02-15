@@ -29,8 +29,7 @@
   <button id="payBtn" onclick="payWithPaystack()">Pay ₦500</button>
   <div class="status" id="status"></div>
 </div>
-
-<script>
+  <script>
   // 1. FIREBASE CONFIG
   const firebaseConfig = {
     apiKey: "AIzaSyCPumFid5YNTWug52q2VDtSDQTLU9REgss",
@@ -42,6 +41,9 @@
   };
   firebase.initializeApp(firebaseConfig);
   const db = firebase.firestore();
+
+  // THE SECRET KEY
+  const SECRET_KEY = "FLEXI_CBT_SECURE_2026";
 
   // 2. PAYMENT FUNCTION
   function payWithPaystack() {
@@ -57,15 +59,13 @@
     payBtn.disabled = true;
     status.textContent = "Processing... please wait.";
 
-    // Logic to open the modal
     const handler = PaystackPop.setup({
-      key: 'pk_live_bb0c7b83bfdbd0c9990e2c7f7fd73a86d4821a00', // Your Live Key
+      key: 'pk_live_bb0c7b83bfdbd0c9990e2c7f7fd73a86d4821a00', 
       email: whatsapp + '@flexicbt.com',
-      amount: 50000, // 500 Naira in kobo
+      amount: 50000, 
       currency: "NGN",
       
       callback: function(response) {
-        // This runs AFTER successful payment
         status.textContent = "Verifying payment and generating PIN...";
         saveUserToFirebase(whatsapp, response.reference);
       },
@@ -81,14 +81,17 @@
   // 3. FIREBASE SAVE FUNCTION
   async function saveUserToFirebase(num, ref) {
     const status = document.getElementById("status");
+    // Generates a clean 6-character PIN after the prefix
     const pin = "FT-" + Math.random().toString(36).substring(2, 8).toUpperCase();
 
     try {
+      // Embedding the secret key here to pass security rules
       await db.collection("subscriptions").doc(num).set({
         whatsapp: num,
         pin: pin,
         paid: true,
         reference: ref,
+        access_key: SECRET_KEY, // Official handshake key
         createdAt: firebase.firestore.FieldValue.serverTimestamp()
       });
 
@@ -103,6 +106,6 @@
       status.textContent = "Error saving data. Please contact admin.";
     }
   }
-</script>
+      </script>
 </body>
 </html>
