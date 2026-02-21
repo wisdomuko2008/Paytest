@@ -40,153 +40,216 @@
   </div>
   <a href="https://flexi-systems.github.io/FleximockCBT/" class="cbt-text-link">Go to CBT Test</a>
 </div>
+  <script>
+  const LOGO_URL = "https://i.postimg.cc/WpFDwz38/1771700279759-2.jpg"; 
+  const SIGNATURE_URL = "https://i.postimg.cc/s2mWqLCR/Screenshot-20260221-200142-2.jpg"; 
+  const WEBSITE_URL = "https://flexi-systems.github.io/Flexi-Tutors/";
 
-<script>
-const LOGO_URL = "https://i.postimg.cc/WpFDwz38/1771700279759-2.jpg"; 
-const SIGNATURE_URL = "https://i.postimg.cc/s2mWqLCR/Screenshot-20260221-200142-2.jpg"; 
-const WEBSITE_URL = "https://flexi-systems.github.io/Flexi-Tutors/";
+  const firebaseConfig = {
+    apiKey: "AIzaSyCPumFid5YNTWug52q2VDtSDQTLU9REgss",
+    authDomain: "flexi-tutors.firebaseapp.com",
+    projectId: "flexi-tutors",
+    storageBucket: "flexi-tutors.firebasestorage.app",
+    messagingSenderId: "320176672406",
+    appId: "1:320176672406:web:90f19511241e51c6437cb7"
+  };
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.firestore();
+  const SECRET_KEY = "FLEXI_CBT_SECURE_2026";
 
-// Fixed Firebase Config
-const firebaseConfig = {
-  apiKey: "AIzaSyCPumFid5YNTWug52q2VDtSDQTLU9REgss",
-  authDomain: "flexi-tutors.firebaseapp.com",
-  projectId: "flexi-tutors",
-  storageBucket: "flexi-tutors.firebasestorage.app"
-};
-firebase.initializeApp(firebaseConfig);
-const db = firebase.firestore();
+  const toDataURL = url => fetch(url)
+    .then(response => response.blob())
+    .then(blob => new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    }));
 
-const toDataURL = url => fetch(url)
-  .then(res => res.blob())
-  .then(blob => new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onloadend = () => resolve(reader.result);
-    reader.onerror = reject;
-    reader.readAsDataURL(blob);
-  }));
+  function payWithPaystack() {
+    const whatsapp = document.getElementById("whatsapp").value.trim();
+    const status = document.getElementById("status");
+    const payBtn = document.getElementById("payBtn");
 
-function payWithPaystack() {
-  const whatsapp = document.getElementById("whatsapp").value.trim();
-  if (whatsapp.length < 10) return alert("Enter valid number");
+    if (whatsapp.length < 10) { alert("Please enter a valid WhatsApp number"); return; }
+    
+    payBtn.disabled = true;
+    status.textContent = "Loading payment window...";
 
-  const paystack = new PaystackPop();
-  paystack.newTransaction({
-    key: 'pk_test_9408761e58ce1fe7a3a57c0df2422d887c3d4b35',
-    email: whatsapp + '@flexitutors.com',
-    amount: 50000,
-    currency: "NGN",
-    onSuccess: (t) => {
-       // Force UI update immediately so user sees success
-       showSuccessScreen(whatsapp, t.reference);
-    },
-    onCancel: () => {
-       document.getElementById("status").innerText = "Payment cancelled.";
+    try {
+      const paystack = new PaystackPop();
+      paystack.newTransaction({
+        key: 'pk_test_9408761e58ce1fe7a3a57c0df2422d887c3d4b35', 
+        email: whatsapp + '@flexitutors.com',
+        amount: 50000, 
+        currency: "NGN",
+        onSuccess: (transaction) => {
+          status.textContent = "Payment successful! Generating PIN...";
+          saveUserToFirebase(whatsapp, transaction.reference);
+        },
+        onCancel: () => {
+          payBtn.disabled = false;
+          status.textContent = "Payment was cancelled.";
+        },
+        onError: (error) => {
+          payBtn.disabled = false;
+          status.textContent = "Error: " + error.message;
+        }
+      });
+    } catch (e) {
+      payBtn.disabled = false;
+      status.textContent = "Failed to load Paystack.";
+      console.error(e);
     }
-  });
-}
-
-async function showSuccessScreen(num, ref) {
-  const pin = "FT-" + Math.random().toString(36).substring(2, 8).toUpperCase();
-  const serialID = "FT-" + Date.now().toString().slice(-6);
-  const dateStr = new Date().toLocaleString();
-
-  // 1. Update the UI first
-  document.getElementById("content-area").innerHTML = `
-    <h2 style="color:green">Success!</h2>
-    <div class="pin-box">${pin}</div>
-    <p id="dl-status">Your receipt is downloading...</p>
-    <span class="manual-link" onclick="generateReceipt('${num}', '${pin}', '${ref}', '${dateStr}', '${serialID}')">
-      Click here to download receipt manually
-    </span>
-    <br><br>
-    <button onclick="window.location.reload()" style="background:#555;">New Payment</button>
-  `;
-
-  // 2. Generate Receipt
-  generateReceipt(num, pin, ref, dateStr, serialID);
-
-  // 3. Save to Firebase in the background
-  try {
-    await db.collection("subscriptions").doc(num).set({
-      whatsapp: num,
-      pin: pin,
-      reference: ref,
-      createdAt: firebase.firestore.FieldValue.serverTimestamp()
-    });
-  } catch (e) {
-    console.error("Firebase Save Error:", e);
   }
-}
 
-async function generateReceipt(phone, pin, ref, date, serialID) {
-  const { jsPDF } = window.jspdf;
-  const doc = new jsPDF();
-
-  try {
-    const [logoData, sigData] = await Promise.all([
-      toDataURL(LOGO_URL),
-      toDataURL(SIGNATURE_URL)
-    ]);
-
-    const qrcodeDiv = document.getElementById("qrcode");
-    qrcodeDiv.innerHTML = "";
-    new QRCode(qrcodeDiv, { text: WEBSITE_URL, width: 100, height: 100 });
-
-    const waitQR = setInterval(() => {
-      const canvas = qrcodeDiv.querySelector("canvas");
-      if (!canvas) return;
-      clearInterval(waitQR);
-      const qrImage = canvas.toDataURL("image/png");
-
-      doc.setFontSize(15);
-      doc.setFont("helvetica","bold");
-      doc.text("FLEXI TUTORS - CBT RECEIPT", 105, 20, { align:"center" });
-
-      doc.setFontSize(9);
-      doc.text("BILL RECEIPT - WEEKLY CBT MOCK TEST", 105, 27, { align:"center" });
-      doc.line(20, 35, 190, 35);
-
-      doc.setFontSize(9);
-      doc.setFont("helvetica","normal");
-      doc.text(`WHATSAPP: ${phone}`, 20, 44);
-      doc.setFont("helvetica","bold");
-      doc.text(`RECEIPT NO: ${ref.substring(0,8).toUpperCase()}`, 140, 44);
-      doc.text(`EXAM PIN: ${pin}`, 140, 49);
-
-      const qrX = 20, qrY = 58, qrSize = 22;
-      doc.addImage(qrImage, 'PNG', qrX, qrY, qrSize, qrSize);
-      doc.link(qrX, qrY, qrSize, qrSize, { url: WEBSITE_URL });
-
-      doc.setTextColor(0,0,255);
-      doc.setFontSize(9);
-      doc.textWithLink("Click here to open CBT portal", qrX, qrY + qrSize + 8, { url: WEBSITE_URL });
-
-      doc.setTextColor(0,0,0);
-      doc.text(`RRR: ${ref}`, 120, 70);
-
-      doc.autoTable({
-        startY: 90,
-        head: [['#','DESCRIPTION','AMOUNT (NGN)']],
-        body: [['1','CBT EXAM PORTAL ACCESS','500.00'],['','TOTAL PAID','500.00']],
-        headStyles: { fillColor: [11, 102, 35] }
+  async function saveUserToFirebase(num, ref) {
+    const pin = "FT-" + Math.random().toString(36).substring(2, 8).toUpperCase();
+    const serialID = "FT-" + Date.now().toString().slice(-6) + "-" + Math.floor(Math.random() * 100);
+    const dateStr = new Date().toLocaleString();
+    
+    try {
+      await db.collection("subscriptions").doc(num).set({
+        whatsapp: num, 
+        pin: pin, 
+        receiptSerial: serialID,
+        paid: true, 
+        reference: ref,
+        access_key: SECRET_KEY, 
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
       });
 
-      const finalY = doc.lastAutoTable.finalY;
-      doc.addImage(sigData, 'JPEG', 20, finalY + 10, 35, 12);
-      doc.line(20, finalY + 24, 65, finalY + 24);
-      doc.setFontSize(8);
-      doc.text("OLUSOLA AINA", 20, finalY + 29);
-      doc.text(`Payment Date: ${date}`, 20, finalY + 45);
-
-      doc.save(`FlexiTutors_Receipt_${phone}.pdf`);
-      if(document.getElementById("dl-status")) {
-          document.getElementById("dl-status").innerText = "Receipt downloaded successfully.";
-      }
-    }, 200);
-  } catch (err) {
-    console.error("PDF generation failed:", err);
+      document.getElementById("content-area").innerHTML = `
+        <h2 style="color:green">Success!</h2>
+        <div class="pin-box">${pin}</div>
+        <p style="font-size:12px; color:#666;">Receipt ID: ${serialID}</p>
+        <p>Your institutional receipt is downloading...</p>
+        <button onclick="window.location.reload()" style="background:#555; margin-top:10px;">New Payment</button>
+      `;
+      generateReceipt(num, pin, ref, dateStr, serialID);
+    } catch (e) { 
+        console.error(e);
+    }
   }
-}
+
+  async function generateReceipt(phone, pin, ref, date, serialID) {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+
+    try {
+      const [logoData, sigData] = await Promise.all([
+        toDataURL(LOGO_URL),
+        toDataURL(SIGNATURE_URL)
+      ]);
+
+      const qrcodeDiv = document.getElementById("qrcode");
+      qrcodeDiv.innerHTML = "";
+      new QRCode(qrcodeDiv, { 
+        text: WEBSITE_URL, 
+        width: 120, 
+        height: 120,
+        colorDark: "#0b6623",   // match your green theme (optional)
+        colorLight: "#ffffff"
+      });
+
+      setTimeout(() => {
+        const qrImage = qrcodeDiv.querySelector("canvas").toDataURL("image/png");
+        
+        // Watermark
+        doc.setGState(new doc.GState({ opacity: 0.08 }));
+        doc.addImage(logoData, 'JPEG', 55, 80, 100, 100); 
+        doc.setGState(new doc.GState({ opacity: 1.0 }));
+
+        // Serial ID (Top Right)
+        doc.setFontSize(8);
+        doc.setTextColor(150);
+        doc.text(`SERIAL: ${serialID}`, 190, 10, { align: "right" });
+
+        // Logo & Header
+        doc.addImage(logoData, 'JPEG', 20, 12, 18, 18);
+        doc.setTextColor(0);
+        doc.setFontSize(15);
+        doc.setFont("helvetica", "bold");
+        doc.text("FLEXI TUTORS - CBT RECEIPT", 105, 20, { align: "center" });
+        doc.setFontSize(9);
+        doc.text("BILL RECEIPT - WEEKLY CBT MOCK TEST", 105, 27, { align: "center" });
+
+        doc.setDrawColor(200);
+        doc.line(20, 35, 190, 35);
+
+        doc.setFontSize(8.5);
+        doc.setFont("helvetica", "normal");
+        doc.text(`WHATSAPP: ${phone}`, 20, 44);
+        doc.text(`SESSION: NOT DEFINED`, 20, 49);
+
+        doc.setFont("helvetica", "bold");
+        doc.text(`RECEIPT NO: ${ref.substring(0, 8).toUpperCase()}`, 140, 44);
+        doc.text(`EXAM PIN: ${pin}`, 140, 49);
+
+        // ────────────────────────────────────────────────
+        // QR CODE + CLICKABLE TEXT (the main fix)
+        const qrX = 20;
+        const qrY = 58;
+        const qrSize = 28;   // bigger = better scanning
+
+        doc.addImage(qrImage, 'PNG', qrX, qrY, qrSize, qrSize);
+
+        // Optional: light border to hint it's interactive
+        doc.setDrawColor(150);
+        doc.setLineWidth(0.4);
+        doc.rect(qrX - 1, qrY - 1, qrSize + 2, qrSize + 2);
+
+        // Clickable text link below the QR (reliable in all viewers)
+        doc.setFontSize(10);
+        doc.setTextColor(11, 102, 35);   // your #0b6623 green
+        doc.textWithLink("Visit Flexi Tutors Site", qrX, qrY + qrSize + 8, {
+          url: WEBSITE_URL
+        });
+        // ────────────────────────────────────────────────
+
+        doc.setFontSize(10);
+        doc.text(`RRR: ${ref}`, 120, 68);
+        doc.setTextColor(11, 102, 35);
+        doc.text("PAID", 182, 68);
+
+        doc.autoTable({
+          startY: 82,
+          head: [['#', 'FEES DESCRIPTION', 'AMOUNT (NGN)']],
+          body: [['1', 'CBT EXAM PORTAL ACCESS FEE', '500.00'], ['', 'TOTAL PAID', '500.00']],
+          theme: 'grid',
+          headStyles: { fillColor: [255, 255, 255], textColor: [0, 0, 0], lineWidth: 0.1 },
+          styles: { fontSize: 8.5, cellPadding: 3.5 },
+          columnStyles: { 2: { halign: 'right', fontStyle: 'bold' } }
+        });
+
+        const finalY = doc.lastAutoTable.finalY;
+        
+        doc.addImage(sigData, 'JPEG', 20, finalY + 12, 35, 12);
+        doc.setTextColor(0,0,0);
+        doc.line(20, finalY + 26, 65, finalY + 26);
+        doc.setFont("helvetica", "bold");
+        doc.text("OLUSOLA AINA", 20, finalY + 31);
+        doc.setFontSize(7);
+        doc.text("CHIEF BURSAR - FLEXI TUTORS", 20, finalY + 35);
+
+        doc.setFontSize(7.5);
+        doc.setTextColor(100);
+        doc.text(`Payment Date: ${date}`, 20, finalY + 50);
+        doc.text("This is a digitally generated receipt. No physical stamp required.", 20, finalY + 55);
+
+        // System Footer
+        const pageHeight = doc.internal.pageSize.height || doc.internal.pageSize.getHeight();
+        doc.setFontSize(8);
+        doc.setFont("helvetica", "italic");
+        doc.setTextColor(150);
+        doc.text("Powered by FLEXI SYSTEMS", 105, pageHeight - 10, { align: "center" });
+
+        doc.save(`FlexiTutors_Receipt_${phone}.pdf`);
+      }, 600);   // slightly longer delay for larger QR
+    } catch (err) {
+      console.error("PDF generation failed:", err);
+    }
+  }
 </script>
 </body>
 </html>
