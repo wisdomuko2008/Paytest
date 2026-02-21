@@ -75,33 +75,33 @@
     const status = document.getElementById("status");
     const payBtn = document.getElementById("payBtn");
 
-    // Fix: Check if Paystack library is loaded
     if (typeof PaystackPop === 'undefined') {
-      alert("Payment gateway is still loading. Please refresh or wait a moment.");
+      alert("Paystack is still loading. Please wait a moment.");
       return;
     }
 
     if (whatsapp.length < 10) { alert("Invalid Number"); return; }
     
     payBtn.disabled = true;
-    status.textContent = "Connecting...";
+    status.textContent = "Launching Payment Gateway...";
 
-    // Fix: Use the new PaystackPop() constructor
-    const paystack = new PaystackPop();
-    paystack.newTransaction({
+    // Explicitly using .setup() and .openIframe() for maximum compatibility
+    const handler = PaystackPop.setup({
       key: 'pk_live_bb0c7b83bfdbd0c9990e2c7f7fd73a86d4821a00', 
       email: whatsapp + '@flexitutors.com',
-      amount: 50000, // 500 Naira
+      amount: 50000, 
       currency: "NGN",
-      onSuccess: function(response) {
+      callback: function(response) {
         status.textContent = "Payment Verified! Finalizing...";
         saveUserToFirebase(whatsapp, response.reference);
       },
-      onCancel: function() {
+      onClose: function() {
         payBtn.disabled = false;
-        status.textContent = "Cancelled.";
+        status.textContent = "Payment Cancelled.";
       }
     });
+    
+    handler.openIframe();
   }
 
   async function saveUserToFirebase(num, ref) {
@@ -127,13 +127,11 @@
     const doc = new jsPDF();
 
     try {
-      // 1. Pre-load external images securely to avoid CORS errors
       const [logoData, sigData] = await Promise.all([
         toDataURL(LOGO_URL),
         toDataURL(SIGNATURE_URL)
       ]);
 
-      // 2. Generate QR Code
       const qrcodeDiv = document.getElementById("qrcode");
       qrcodeDiv.innerHTML = "";
       new QRCode(qrcodeDiv, { text: WEBSITE_URL, width: 100, height: 100 });
@@ -141,12 +139,10 @@
       setTimeout(() => {
         const qrImage = qrcodeDiv.querySelector("canvas").toDataURL("image/png");
         
-        // 3. Watermark
         doc.setGState(new doc.GState({ opacity: 0.08 }));
         doc.addImage(logoData, 'JPEG', 55, 80, 100, 100); 
         doc.setGState(new doc.GState({ opacity: 1.0 }));
 
-        // 4. Logo & Header
         doc.addImage(logoData, 'JPEG', 20, 12, 18, 18);
         doc.setFontSize(15);
         doc.setFont("helvetica", "bold");
@@ -154,7 +150,6 @@
         doc.setFontSize(9);
         doc.text("BILL RECEIPT - WEEKLY CBT MOCK TEST", 105, 27, { align: "center" });
 
-        // 5. User Info Block
         doc.setDrawColor(200);
         doc.line(20, 35, 190, 35);
         doc.setFontSize(8.5);
@@ -165,7 +160,6 @@
         doc.text(`RECEIPT NO: ${ref.substring(0, 8).toUpperCase()}`, 140, 44);
         doc.text(`EXAM PIN: ${pin}`, 140, 49);
 
-        // 6. QR & PAID
         doc.addImage(qrImage, 'PNG', 20, 58, 18, 18);
         doc.link(20, 58, 18, 18, { url: WEBSITE_URL });
         doc.setFontSize(10);
@@ -173,7 +167,6 @@
         doc.setTextColor(11, 102, 35);
         doc.text("PAID", 182, 68);
 
-        // 7. Table
         doc.autoTable({
           startY: 82,
           head: [['#', 'FEES DESCRIPTION', 'AMOUNT (NGN)']],
@@ -186,7 +179,6 @@
 
         const finalY = doc.lastAutoTable.finalY;
         
-        // 8. Signature Section
         doc.addImage(sigData, 'JPEG', 20, finalY + 12, 35, 12);
         doc.setTextColor(0,0,0);
         doc.line(20, finalY + 26, 65, finalY + 26);
@@ -195,7 +187,6 @@
         doc.setFontSize(7);
         doc.text("CHIEF BURSAR - FLEXI TUTORS", 20, finalY + 35);
 
-        // 9. Footer
         doc.setFontSize(7.5);
         doc.setTextColor(100);
         doc.text(`Payment Date: ${date}`, 20, finalY + 50);
@@ -205,7 +196,6 @@
       }, 500);
     } catch (err) {
       console.error("PDF generation failed:", err);
-      alert("Check your internet. Images could not be loaded into the PDF.");
     }
   }
 </script>
