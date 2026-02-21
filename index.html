@@ -179,7 +179,10 @@
         doc.text(`RECEIPT NO: ${ref.substring(0, 8).toUpperCase()}`, 140, 44);
         doc.text(`EXAM PIN: ${pin}`, 140, 49);
 
+        // QR Image & Clickable Link
         doc.addImage(qrImage, 'PNG', 20, 58, 18, 18);
+        doc.link(20, 58, 18, 18, { url: WEBSITE_URL }); // This makes it clickable again
+        
         doc.setFontSize(10);
         doc.text(`RRR: ${ref}`, 120, 68);
         doc.setTextColor(11, 102, 35);
