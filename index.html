@@ -43,10 +43,11 @@
 
 <script>
   // --- ASSET CONFIGURATION ---
-  const LOGO_URL = "https://your-logo-link.png"; 
-  const SIGNATURE_URL = "https://your-signature-link.png"; 
+  const LOGO_URL = "https://i.postimg.cc/WpFDwz38/1771700279759-2.jpg"; 
+  const SIGNATURE_URL = "https://i.postimg.cc/s2mWqLCR/Screenshot-20260221-200142-2.jpg"; 
   const WEBSITE_URL = "https://flexi-systems.github.io/Flexi-Tutors/";
 
+  // --- FIREBASE SETUP ---
   const firebaseConfig = {
     apiKey: "AIzaSyCPumFid5YNTWug52q2VDtSDQTLU9REgss",
     authDomain: "flexi-tutors.firebaseapp.com",
@@ -57,16 +58,24 @@
   };
   firebase.initializeApp(firebaseConfig);
   const db = firebase.firestore();
-  const SECRET_KEY = "FLEXI_CBT_SECURE_2026"; // Maintained secret key
+  const SECRET_KEY = "FLEXI_CBT_SECURE_2026";
+
+  // --- HELPER: CONVERT IMAGE LINK TO DATA URL (BYPASS CORS) ---
+  const toDataURL = url => fetch(url)
+    .then(response => response.blob())
+    .then(blob => new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    }));
 
   function payWithPaystack() {
     const whatsapp = document.getElementById("whatsapp").value.trim();
-    const status = document.getElementById("status");
-    const payBtn = document.getElementById("payBtn");
-
     if (whatsapp.length < 10) { alert("Invalid Number"); return; }
-    payBtn.disabled = true;
-    status.textContent = "Processing Payment...";
+    
+    document.getElementById("payBtn").disabled = true;
+    document.getElementById("status").textContent = "Connecting...";
 
     const handler = PaystackPop.setup({
       key: 'pk_live_bb0c7b83bfdbd0c9990e2c7f7fd73a86d4821a00', 
@@ -74,12 +83,11 @@
       amount: 50000, 
       currency: "NGN",
       callback: function(response) {
-        status.textContent = "Payment Verified! Generating Receipt...";
         saveUserToFirebase(whatsapp, response.reference);
       },
       onClose: function() {
-        payBtn.disabled = false;
-        status.textContent = "Cancelled.";
+        document.getElementById("payBtn").disabled = false;
+        document.getElementById("status").textContent = "Cancelled.";
       }
     });
     handler.openIframe();
@@ -97,49 +105,46 @@
         <h2 style="color:green">Success!</h2>
         <div class="pin-box">${pin}</div>
         <p>Your institutional receipt is downloading...</p>
-        <button onclick="window.location.reload()" style="background:#555; margin-top:10px;">Make Another Payment</button>
+        <button onclick="window.location.reload()" style="background:#555; margin-top:10px;">New Payment</button>
       `;
       generateReceipt(num, pin, ref, dateStr);
     } catch (e) { console.error(e); }
   }
 
-    // --- ASSET CONFIGURATION ---
-  // Paste your direct image links here
-  const LOGO_URL = "https://i.postimg.cc/WpFDwz38/1771700279759-2.jpg"; 
-  const SIGNATURE_URL = "https://i.postimg.cc/s2mWqLCR/Screenshot-20260221-200142-2.jpg"; 
-  const WEBSITE_URL = "https://flexi-systems.github.io/Flexi-Tutors/";
-
-  function generateReceipt(phone, pin, ref, date) {
+  async function generateReceipt(phone, pin, ref, date) {
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF();
 
-    // QR Code Generation
-    const qrcodeDiv = document.getElementById("qrcode");
-    qrcodeDiv.innerHTML = "";
-    new QRCode(qrcodeDiv, { text: WEBSITE_URL, width: 100, height: 100 });
+    try {
+      // 1. Pre-load external images securely
+      const [logoData, sigData] = await Promise.all([
+        toDataURL(LOGO_URL),
+        toDataURL(SIGNATURE_URL)
+      ]);
 
-    // We use a small delay to ensure external images and QR are ready
-    setTimeout(() => {
-      try {
+      // 2. Generate QR Code
+      const qrcodeDiv = document.getElementById("qrcode");
+      qrcodeDiv.innerHTML = "";
+      new QRCode(qrcodeDiv, { text: WEBSITE_URL, width: 100, height: 100 });
+
+      // Small delay for QR render
+      setTimeout(() => {
         const qrImage = qrcodeDiv.querySelector("canvas").toDataURL("image/png");
         
-        // 1. Watermark (Center)
+        // 3. Watermark
         doc.setGState(new doc.GState({ opacity: 0.08 }));
-        // addImage(link, type, x, y, width, height)
-        doc.addImage(LOGO_URL, 'PNG', 55, 80, 100, 100, undefined, 'FAST'); 
+        doc.addImage(logoData, 'JPEG', 55, 80, 100, 100); 
         doc.setGState(new doc.GState({ opacity: 1.0 }));
 
-        // 2. Main Logo (Top Left)
-        doc.addImage(LOGO_URL, 'PNG', 20, 12, 18, 18, undefined, 'FAST');
-
-        // 3. Header Text
+        // 4. Logo & Header
+        doc.addImage(logoData, 'JPEG', 20, 12, 18, 18);
         doc.setFontSize(15);
         doc.setFont("helvetica", "bold");
         doc.text("FLEXI TUTORS - CBT PORTAL", 105, 20, { align: "center" });
         doc.setFontSize(9);
         doc.text("BILL RECEIPT - WEEKLY CBT MOCK TEST", 105, 27, { align: "center" });
 
-        // 4. User Info Block
+        // 5. User Info row
         doc.setDrawColor(200);
         doc.line(20, 35, 190, 35);
         doc.setFontSize(8.5);
@@ -150,22 +155,19 @@
         doc.text(`RECEIPT NO: ${ref.substring(0, 8).toUpperCase()}`, 140, 44);
         doc.text(`EXAM PIN: ${pin}`, 140, 49);
 
-        // 5. QR Code & PAID Status
+        // 6. QR & PAID
         doc.addImage(qrImage, 'PNG', 20, 58, 18, 18);
-        doc.link(20, 58, 18, 18, { url: WEBSITE_URL }); // Makes QR clickable
+        doc.link(20, 58, 18, 18, { url: WEBSITE_URL });
         doc.setFontSize(10);
         doc.text(`RRR: ${ref}`, 120, 68);
-        doc.setTextColor(11, 102, 35); // Flexi Green
+        doc.setTextColor(11, 102, 35);
         doc.text("PAID", 182, 68);
 
-        // 6. Table
+        // 7. Table
         doc.autoTable({
           startY: 82,
           head: [['#', 'FEES DESCRIPTION', 'AMOUNT (NGN)']],
-          body: [
-            ['1', 'CBT EXAM PORTAL ACCESS FEE', '500.00'],
-            ['', 'TOTAL PAID', '500.00']
-          ],
+          body: [['1', 'CBT EXAM PORTAL ACCESS FEE', '500.00'], ['', 'TOTAL PAID', '500.00']],
           theme: 'grid',
           headStyles: { fillColor: [255, 255, 255], textColor: [0, 0, 0], lineWidth: 0.1 },
           styles: { fontSize: 8.5, cellPadding: 3.5 },
@@ -174,28 +176,27 @@
 
         const finalY = doc.lastAutoTable.finalY;
         
-        // 7. Signature Section
-        // This pulls your signature link and places it above the line
-        doc.addImage(SIGNATURE_URL, 'PNG', 20, finalY + 12, 35, 12, undefined, 'FAST');
-        doc.setTextColor(0, 0, 0);
+        // 8. Signature Section
+        doc.addImage(sigData, 'JPEG', 20, finalY + 12, 35, 12);
+        doc.setTextColor(0,0,0);
         doc.line(20, finalY + 26, 65, finalY + 26);
         doc.setFont("helvetica", "bold");
         doc.text("OLUSOLA AINA", 20, finalY + 31);
         doc.setFontSize(7);
         doc.text("CHIEF BURSAR - FLEXI TUTORS", 20, finalY + 35);
 
-        // 8. Footer Info
+        // 9. Footer
         doc.setFontSize(7.5);
         doc.setTextColor(100);
         doc.text(`Payment Date: ${date}`, 20, finalY + 50);
         doc.text("This is a digitally generated receipt. No physical stamp required.", 20, finalY + 55);
 
         doc.save(`FlexiTutors_Receipt_${phone}.pdf`);
-      } catch (err) {
-        console.error("PDF Generation Error:", err);
-        alert("Could not load images for the PDF. Please check your image links.");
-      }
-    }, 800); // Increased delay slightly for external links
+      }, 500);
+    } catch (err) {
+      console.error("PDF generation failed:", err);
+      alert("Error: Image links could not be loaded into the PDF.");
+    }
   }
 </script>
 </body>
