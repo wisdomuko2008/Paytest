@@ -18,6 +18,23 @@
   button { width: 100%; padding: 12px; background: #0b6623; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; }
   button:disabled { background: #ccc; }
   .status { margin-top: 15px; font-size: 14px; }
+.btn {
+  display: inline-block;
+  width: 100%;
+  padding: 12px;
+  background: #0b6623;
+  color: white;
+  text-align: center;
+  text-decoration: none;
+  border-radius: 8px;
+  font-weight: bold;
+  cursor: pointer;
+  margin-top: 15px;
+}
+
+.btn:hover {
+  background: #094a1a;
+}
 </style>
 </head>
 <body>
@@ -29,6 +46,7 @@
   <button id="payBtn" onclick="payWithPaystack()">Pay ₦500</button>
   <div class="status" id="status"></div>
 </div>
+  <a href="https://your-cbt-website.com" class="btn">Go to CBT Test</a>
   <script>
   // 1. FIREBASE CONFIG
   const firebaseConfig = {
