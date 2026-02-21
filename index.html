@@ -3,52 +3,43 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Flexi CBT – Payment</title>
+<title>Flexi Tutors – Payment</title>
 
 <script src="https://js.paystack.co/v1/inline.js"></script>
-
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
 
 <style>
-  body { font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; background: #f4f6f4; }
-  .container { background: #fff; padding: 30px; width: 90%; max-width: 400px; border-radius: 12px; text-align: center; box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
-  h2 { color: #0b6623; }
-  input { width: 100%; padding: 12px; margin: 15px 0; border-radius: 8px; border: 1px solid #ccc; box-sizing: border-box; }
-  button { width: 100%; padding: 12px; background: #0b6623; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; }
+  body { font-family: sans-serif; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; background: #f4f6f4; }
+  .main-wrapper { display: flex; flex-direction: column; align-items: center; width: 90%; max-width: 400px; }
+  .container { background: #fff; padding: 30px; width: 100%; border-radius: 12px; text-align: center; box-shadow: 0 10px 25px rgba(0,0,0,0.1); box-sizing: border-box; }
+  h2 { color: #0b6623; margin-top: 0; }
+  input { width: 100%; padding: 12px; margin: 15px 0; border-radius: 8px; border: 1px solid #ccc; box-sizing: border-box; font-size: 16px; }
+  button { width: 100%; padding: 12px; background: #0b6623; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 16px; }
   button:disabled { background: #ccc; }
-  .status { margin-top: 15px; font-size: 14px; }
-.btn {
-  display: inline-block;
-  width: 100%;
-  padding: 12px;
-  background: #0b6623;
-  color: white;
-  text-align: center;
-  text-decoration: none;
-  border-radius: 8px;
-  font-weight: bold;
-  cursor: pointer;
-  margin-top: 15px;
-}
-
-.btn:hover {
-  background: #094a1a;
-}
+  .status { margin-top: 15px; font-size: 14px; color: #666; }
+  .cbt-text-link { margin-top: 20px; color: #0b6623; text-decoration: none; font-weight: bold; font-size: 16px; }
+  .cbt-text-link:hover { text-decoration: underline; }
+  .pin-box { font-size: 28px; color: #0b6623; font-weight: bold; letter-spacing: 2px; background: #e8f5e9; padding: 15px; border-radius: 8px; margin: 20px 0; border: 2px dashed #0b6623; }
 </style>
 </head>
 <body>
 
-<div class="container">
-  <h2>CBT Access Payment</h2>
-  <p>Pay <b>₦500</b> to get your Exam PIN</p>
-  <input type="tel" id="whatsapp" placeholder="WhatsApp Number (080...)">
-  <button id="payBtn" onclick="payWithPaystack()">Pay ₦500</button>
-  <div class="status" id="status"></div>
+<div class="main-wrapper">
+  <div class="container" id="content-area">
+    <h2>CBT Access Payment</h2>
+    <p>Pay <b>₦500</b> to get your Exam PIN</p>
+    <input type="tel" id="whatsapp" placeholder="WhatsApp Number (080...)">
+    <button id="payBtn" onclick="payWithPaystack()">Pay ₦500</button>
+    <div class="status" id="status"></div>
+  </div>
+  <a href="https://flexi-systems.github.io/FleximockCBT/" class="cbt-text-link">Go to CBT Test</a>
 </div>
-  <a href="https://flexi-systems.github.io/FleximockCBT/" class="btn">Go to CBT Test</a>
-  <script>
-  // 1. FIREBASE CONFIG
+
+<script>
+  // FIREBASE CONFIG
   const firebaseConfig = {
     apiKey: "AIzaSyCPumFid5YNTWug52q2VDtSDQTLU9REgss",
     authDomain: "flexi-tutors.firebaseapp.com",
@@ -59,11 +50,8 @@
   };
   firebase.initializeApp(firebaseConfig);
   const db = firebase.firestore();
-
-  // THE SECRET KEY
   const SECRET_KEY = "FLEXI_CBT_SECURE_2026";
 
-  // 2. PAYMENT FUNCTION
   function payWithPaystack() {
     const whatsapp = document.getElementById("whatsapp").value.trim();
     const status = document.getElementById("status");
@@ -75,55 +63,115 @@
     }
 
     payBtn.disabled = true;
-    status.textContent = "Processing... please wait.";
+    status.textContent = "Initiating Secure Payment...";
 
     const handler = PaystackPop.setup({
       key: 'pk_live_bb0c7b83bfdbd0c9990e2c7f7fd73a86d4821a00', 
-      email: whatsapp + '@flexicbt.com',
+      email: whatsapp + '@flexitutors.com',
       amount: 50000, 
       currency: "NGN",
-      
       callback: function(response) {
-        status.textContent = "Verifying payment and generating PIN...";
+        status.textContent = "Finalizing receipt...";
         saveUserToFirebase(whatsapp, response.reference);
       },
       onClose: function() {
         payBtn.disabled = false;
-        status.textContent = "Window closed. Payment not finished.";
+        status.textContent = "Payment cancelled.";
       }
     });
-
     handler.openIframe();
   }
 
-  // 3. FIREBASE SAVE FUNCTION
   async function saveUserToFirebase(num, ref) {
-    const status = document.getElementById("status");
-    // Generates a clean 6-character PIN after the prefix
     const pin = "FT-" + Math.random().toString(36).substring(2, 8).toUpperCase();
+    const dateStr = new Date().toLocaleString();
 
     try {
-      // Embedding the secret key here to pass security rules
       await db.collection("subscriptions").doc(num).set({
-        whatsapp: num,
-        pin: pin,
-        paid: true,
-        reference: ref,
-        access_key: SECRET_KEY, // Official handshake key
-        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        whatsapp: num, pin: pin, paid: true, reference: ref,
+        access_key: SECRET_KEY, createdAt: firebase.firestore.FieldValue.serverTimestamp()
       });
 
-      document.querySelector(".container").innerHTML = `
-        <h2 style="color:green">Payment Successful!</h2>
-        <p>Your CBT PIN is:</p>
-        <h1 style="letter-spacing:2px; color:#0b6623;">${pin}</h1>
-        <p>Save this PIN to login to your exam.</p>
+      document.getElementById("content-area").innerHTML = `
+        <h2 style="color:green">Payment Successful</h2>
+        <div class="pin-box">${pin}</div>
+        <p style="font-size:14px;">Your official receipt has been generated and downloaded.</p>
+        <button onclick="window.location.reload()" style="background:#555; margin-top:10px;">New Payment</button>
       `;
+
+      generateReceipt(num, pin, ref, dateStr);
     } catch (e) {
-      console.error("Firebase Error: ", e);
-      status.textContent = "Error saving data. Please contact admin.";
+      document.getElementById("status").textContent = "Error saving. Contact Admin.";
     }
   }
-      </script>
+
+  function generateReceipt(phone, pin, ref, date) {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+
+    // Header (Institutional Style)
+    doc.setFontSize(16);
+    doc.setFont("helvetica", "bold");
+    doc.text("FLEXI TUTORS - CBT RECEIPT", 105, 20, { align: "center" });
+    
+    doc.setFontSize(10);
+    doc.text("BILL RECEIPT - WEEKLY MOCK TEST RECEIPT", 105, 28, { align: "center" });
+
+    // User Info Header Block
+    doc.setDrawColor(200, 200, 200);
+    doc.line(20, 35, 190, 35);
+    
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "normal");
+    doc.text(`WHATSAPP: ${phone}`, 20, 45);
+    doc.text(`SESSION: NOT DEFINED`, 20, 50);
+    
+    doc.setFont("helvetica", "bold");
+    doc.text(`RECEIPT NO: ${ref.substring(0, 8).toUpperCase()}`, 140, 45);
+    doc.text(`LOGIN PIN: ${pin}`, 140, 50);
+
+    // PAID Indicator
+    doc.setFontSize(11);
+    doc.text(`RRR: ${ref}`, 120, 65);
+    doc.setTextColor(11, 102, 35);
+    doc.text("PAID", 180, 65);
+
+    // Table
+    doc.autoTable({
+      startY: 75,
+      head: [['#', 'FEES DESCRIPTION', 'AMOUNT (NGN)']],
+      body: [
+        ['1', 'CBT EXAM PORTAL ACCESS', '500.00'],
+        ['', 'TOTAL PAID', '500.00']
+      ],
+      theme: 'grid',
+      headStyles: { fillColor: [255, 255, 255], textColor: [0, 0, 0], lineWidth: 0.1 },
+      styles: { fontSize: 9, cellPadding: 4 },
+      columnStyles: { 0: { cellWidth: 10 }, 2: { halign: 'right', fontStyle: 'bold' } }
+    });
+
+    const finalY = doc.lastAutoTable.finalY;
+    
+    // Footer Details
+    doc.setFontSize(8);
+    doc.setTextColor(11, 102, 35);
+    doc.setFont("helvetica", "italic");
+    doc.text(`Date Initiated: ${date}`, 20, finalY + 10);
+    
+    doc.setTextColor(0, 0, 0);
+    doc.setFont("helvetica", "normal");
+    doc.text("Please print a copy of this receipt as evidence of payment.", 20, finalY + 20);
+    doc.text("For enquiries, contact support@flexitutors.com.ng", 20, finalY + 25);
+
+    // Signature Area
+    doc.line(20, finalY + 45, 60, finalY + 45);
+    doc.setFont("helvetica", "bold");
+    doc.text("FLEXI MANAGEMENT", 20, finalY + 50);
+    doc.setFontSize(7);
+    doc.text("CHIEF BURSAR - FLEXI TUTORS", 20, finalY + 54);
+
+    doc.save(`Receipt_${phone}_FlexiTutors.pdf`);
+  }
+</script>
 </body>
 </html>
