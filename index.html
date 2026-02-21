@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Flexi Tutors – Payment</title>
 
-<script src="https://js.paystack.co/v1/inline.js"></script>
+<script src="https://js.paystack.co/v2/inline.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -42,12 +42,10 @@
 </div>
 
 <script>
-  // --- ASSET CONFIGURATION ---
   const LOGO_URL = "https://i.postimg.cc/WpFDwz38/1771700279759-2.jpg"; 
   const SIGNATURE_URL = "https://i.postimg.cc/s2mWqLCR/Screenshot-20260221-200142-2.jpg"; 
   const WEBSITE_URL = "https://flexi-systems.github.io/Flexi-Tutors/";
 
-  // --- FIREBASE SETUP ---
   const firebaseConfig = {
     apiKey: "AIzaSyCPumFid5YNTWug52q2VDtSDQTLU9REgss",
     authDomain: "flexi-tutors.firebaseapp.com",
@@ -60,7 +58,6 @@
   const db = firebase.firestore();
   const SECRET_KEY = "FLEXI_CBT_SECURE_2026";
 
-  // --- HELPER: CONVERT IMAGE LINK TO DATA URL (BYPASS CORS) ---
   const toDataURL = url => fetch(url)
     .then(response => response.blob())
     .then(blob => new Promise((resolve, reject) => {
@@ -75,33 +72,36 @@
     const status = document.getElementById("status");
     const payBtn = document.getElementById("payBtn");
 
-    if (typeof PaystackPop === 'undefined') {
-      alert("Paystack is still loading. Please wait a moment.");
-      return;
-    }
-
-    if (whatsapp.length < 10) { alert("Invalid Number"); return; }
+    if (whatsapp.length < 10) { alert("Please enter a valid WhatsApp number"); return; }
     
     payBtn.disabled = true;
-    status.textContent = "Launching Payment Gateway...";
+    status.textContent = "Loading payment window...";
 
-    // Explicitly using .setup() and .openIframe() for maximum compatibility
-    const handler = PaystackPop.setup({
-      key: 'pk_live_bb0c7b83bfdbd0c9990e2c7f7fd73a86d4821a00', 
-      email: whatsapp + '@flexitutors.com',
-      amount: 50000, 
-      currency: "NGN",
-      callback: function(response) {
-        status.textContent = "Payment Verified! Finalizing...";
-        saveUserToFirebase(whatsapp, response.reference);
-      },
-      onClose: function() {
-        payBtn.disabled = false;
-        status.textContent = "Payment Cancelled.";
-      }
-    });
-    
-    handler.openIframe();
+    try {
+      const paystack = new PaystackPop();
+      paystack.newTransaction({
+        key: 'pk_live_bb0c7b83bfdbd0c9990e2c7f7fd73a86d4821a00', 
+        email: whatsapp + '@flexitutors.com',
+        amount: 50000, 
+        currency: "NGN",
+        onSuccess: (transaction) => {
+          status.textContent = "Payment successful! Generating PIN...";
+          saveUserToFirebase(whatsapp, transaction.reference);
+        },
+        onCancel: () => {
+          payBtn.disabled = false;
+          status.textContent = "Payment was cancelled.";
+        },
+        onError: (error) => {
+          payBtn.disabled = false;
+          status.textContent = "Error: " + error.message;
+        }
+      });
+    } catch (e) {
+      payBtn.disabled = false;
+      status.textContent = "Failed to load Paystack. Check your connection.";
+      console.error(e);
+    }
   }
 
   async function saveUserToFirebase(num, ref) {
@@ -119,7 +119,10 @@
         <button onclick="window.location.reload()" style="background:#555; margin-top:10px;">New Payment</button>
       `;
       generateReceipt(num, pin, ref, dateStr);
-    } catch (e) { console.error(e); }
+    } catch (e) { 
+        console.error(e);
+        document.getElementById("status").textContent = "Database error. Please contact support.";
+    }
   }
 
   async function generateReceipt(phone, pin, ref, date) {
