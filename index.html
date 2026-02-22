@@ -149,7 +149,7 @@
         doc.addImage(logoData, 'JPEG', 20, 12, 18, 18);
         doc.setFontSize(15);
         doc.setFont("helvetica", "bold");
-        doc.text("FLEXI TUTORS - CBT PORTAL", 105, 20, { align: "center" });
+        doc.text("FLEXI TUTORS - CBT EXAM PORTAL", 105, 20, { align: "center" });
         doc.setFontSize(9);
         doc.text("BILL RECEIPT - WEEKLY CBT MOCK TEST", 105, 27, { align: "center" });
 
@@ -158,7 +158,7 @@
         doc.setFontSize(8.5);
         doc.setFont("helvetica", "normal");
         doc.text(`WHATSAPP: ${phone}`, 20, 44);
-        doc.text(`SESSION: 2025/2026 SECOND TERM`, 20, 49);
+        doc.text(`SESSION: NOT DEFINED`, 20, 49);
         doc.setFont("helvetica", "bold");
         doc.text(`RECEIPT NO: ${ref.substring(0, 8).toUpperCase()}`, 140, 44);
         doc.text(`EXAM PIN: ${pin}`, 140, 49);
@@ -196,8 +196,9 @@
   doc.text("This is a digitally generated receipt. No physical stamp required.", 20, finalY + 55);
 
 // Footer
+doc.setFont("helvetica", "italic");
 doc.setFontSize(8);
-doc.setTextColor(120);
+doc.setTextColor(11, 102, 35); // Flexi green
 doc.text("powered by FLEXI SYSTEMS", 105, 290, { align: "center" });
 
 doc.save(`FlexiTutors_Receipt_${phone}.pdf`);
