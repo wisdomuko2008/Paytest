@@ -193,9 +193,14 @@
         doc.setFontSize(7.5);
         doc.setTextColor(100);
         doc.text(`Payment Date: ${date}`, 20, finalY + 50);
-        doc.text("This is a digitally generated receipt. No physical stamp required.", 20, finalY + 55);
+  doc.text("This is a digitally generated receipt. No physical stamp required.", 20, finalY + 55);
 
-        doc.save(`FlexiTutors_Receipt_${phone}.pdf`);
+// Footer
+doc.setFontSize(8);
+doc.setTextColor(120);
+doc.text("powered by FLEXI SYSTEMS", 105, 290, { align: "center" });
+
+doc.save(`FlexiTutors_Receipt_${phone}.pdf`);
       }, 500);
     } catch (err) {
       console.error("PDF generation failed:", err);
