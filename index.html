@@ -20,10 +20,10 @@
   input { width: 100%; padding: 12px; margin: 15px 0; border-radius: 8px; border: 1px solid #ccc; box-sizing: border-box; font-size: 16px; }
   button { width: 100%; padding: 12px; background: #0b6623; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 16px; }
   button:disabled { background: #ccc; cursor: not-allowed; }
+  .status { margin-top: 15px; font-size: 14px; color: #666; }
+  .cbt-text-link { margin-top: 20px; color: #0b6623; text-decoration: none; font-weight: bold; font-size: 16px; }
   .pin-box { font-size: 28px; color: #0b6623; font-weight: bold; letter-spacing: 2px; background: #e8f5e9; padding: 15px; border-radius: 8px; margin: 20px 0; border: 2px dashed #0b6623; }
   #qrcode { display: none; }
-  .manual-link { color: #0b6623; text-decoration: underline; cursor: pointer; font-weight: bold; font-size: 14px; margin-top: 10px; display: inline-block; }
-  .cbt-text-link { margin-top: 20px; color: #0b6623; text-decoration: none; font-weight: bold; font-size: 16px; }
 </style>
 </head>
 <body>
@@ -36,11 +36,12 @@
     <p>Pay <b>₦500</b> to get your Exam PIN</p>
     <input type="tel" id="whatsapp" placeholder="WhatsApp Number (080...)">
     <button id="payBtn" onclick="payWithPaystack()">Pay ₦500</button>
-    <div id="status" style="margin-top:10px; font-size:12px; color:#666;"></div>
+    <div class="status" id="status"></div>
   </div>
   <a href="https://flexi-systems.github.io/FleximockCBT/" class="cbt-text-link">Go to CBT Test</a>
 </div>
-  <script>
+
+<script>
   const LOGO_URL = "https://i.postimg.cc/WpFDwz38/1771700279759-2.jpg"; 
   const SIGNATURE_URL = "https://i.postimg.cc/s2mWqLCR/Screenshot-20260221-200142-2.jpg"; 
   const WEBSITE_URL = "https://flexi-systems.github.io/Flexi-Tutors/";
@@ -144,13 +145,8 @@
 
       const qrcodeDiv = document.getElementById("qrcode");
       qrcodeDiv.innerHTML = "";
-      new QRCode(qrcodeDiv, { 
-        text: WEBSITE_URL, 
-        width: 120, 
-        height: 120,
-        colorDark: "#0b6623",   // match your green theme (optional)
-        colorLight: "#ffffff"
-      });
+      // Higher resolution QR for better scanability
+      new QRCode(qrcodeDiv, { text: WEBSITE_URL, width: 256, height: 256 });
 
       setTimeout(() => {
         const qrImage = qrcodeDiv.querySelector("canvas").toDataURL("image/png");
@@ -170,44 +166,34 @@
         doc.setTextColor(0);
         doc.setFontSize(15);
         doc.setFont("helvetica", "bold");
-        doc.text("FLEXI TUTORS - CBT RECEIPT", 105, 20, { align: "center" });
+        doc.text("FLEXI TUTORS - CBT PORTAL", 105, 20, { align: "center" });
         doc.setFontSize(9);
         doc.text("BILL RECEIPT - WEEKLY CBT MOCK TEST", 105, 27, { align: "center" });
 
         doc.setDrawColor(200);
         doc.line(20, 35, 190, 35);
-
         doc.setFontSize(8.5);
         doc.setFont("helvetica", "normal");
         doc.text(`WHATSAPP: ${phone}`, 20, 44);
-        doc.text(`SESSION: NOT DEFINED`, 20, 49);
-
+        doc.text(`SESSION: 2025/2026 SECOND TERM`, 20, 49);
         doc.setFont("helvetica", "bold");
         doc.text(`RECEIPT NO: ${ref.substring(0, 8).toUpperCase()}`, 140, 44);
         doc.text(`EXAM PIN: ${pin}`, 140, 49);
 
-        // ────────────────────────────────────────────────
-        // QR CODE + CLICKABLE TEXT (the main fix)
-        const qrX = 20;
-        const qrY = 58;
-        const qrSize = 28;   // bigger = better scanning
-
-        doc.addImage(qrImage, 'PNG', qrX, qrY, qrSize, qrSize);
-
-        // Optional: light border to hint it's interactive
-        doc.setDrawColor(150);
-        doc.setLineWidth(0.4);
-        doc.rect(qrX - 1, qrY - 1, qrSize + 2, qrSize + 2);
-
-        // Clickable text link below the QR (reliable in all viewers)
-        doc.setFontSize(10);
-        doc.setTextColor(11, 102, 35);   // your #0b6623 green
-        doc.textWithLink("Visit Flexi Tutors Site", qrX, qrY + qrSize + 8, {
-          url: WEBSITE_URL
-        });
-        // ────────────────────────────────────────────────
+        // QR Image Placement
+        doc.addImage(qrImage, 'PNG', 20, 58, 18, 18);
+        
+        // CLICKABLE LINK OVERLAY
+        doc.link(20, 58, 18, 18, { url: WEBSITE_URL });
+        
+        doc.setFontSize(6);
+        doc.setTextColor(100);
+        doc.setFont("helvetica", "italic");
+        doc.text("Click QR to Verify", 20, 78);
 
         doc.setFontSize(10);
+        doc.setTextColor(0);
+        doc.setFont("helvetica", "bold");
         doc.text(`RRR: ${ref}`, 120, 68);
         doc.setTextColor(11, 102, 35);
         doc.text("PAID", 182, 68);
@@ -245,7 +231,7 @@
         doc.text("Powered by FLEXI SYSTEMS", 105, pageHeight - 10, { align: "center" });
 
         doc.save(`FlexiTutors_Receipt_${phone}.pdf`);
-      }, 600);   // slightly longer delay for larger QR
+      }, 500);
     } catch (err) {
       console.error("PDF generation failed:", err);
     }
@@ -253,3 +239,4 @@
 </script>
 </body>
 </html>
+
